@@ -92,7 +92,7 @@ def _load_demo_entries() -> list[DemoEntry]:
             continue
 
         demo_index = len(demo_entries) + 1
-        name = str(payload.get("name", "")).strip() or f"Demo {demo_index}: {prompt_audio_path.stem}"
+        name = str(payload.get("name", "")).strip() or f"演示 {demo_index}：{prompt_audio_path.stem}"
         demo_entries.append(
             DemoEntry(
                 demo_id=f"demo-{demo_index}",
@@ -162,7 +162,7 @@ class WarmupManager:
         self._started = False
         self._state = "pending"
         self._progress = 0.0
-        self._message = "Waiting for startup warmup."
+        self._message = "等待启动预热。"
         self._error: str | None = None
 
     def start(self) -> None:
@@ -212,16 +212,16 @@ class WarmupManager:
 
     def _run(self) -> None:
         try:
-            self._set_state(state="running", progress=0.1, message="Loading Nano-TTS model.", error=None)
+            self._set_state(state="running", progress=0.1, message="正在加载 Nano-TTS 模型。", error=None)
             self.runtime.get_model()
-            self._set_state(state="running", progress=0.6, message="Running startup warmup synthesis.", error=None)
+            self._set_state(state="running", progress=0.6, message="正在运行启动预热合成。", error=None)
             result = self.runtime.warmup()
             _maybe_delete_file(result["audio_path"])
             if self.text_normalizer_manager is not None:
                 self._set_state(
                     state="running",
                     progress=0.85,
-                    message="Loading WeTextProcessing text normalization.",
+                    message="正在加载 WeTextProcessing 文本归一化。",
                     error=None,
                 )
                 normalization_snapshot = self.text_normalizer_manager.ensure_ready()
@@ -231,15 +231,15 @@ class WarmupManager:
                 state="ready",
                 progress=1.0,
                 message=(
-                    f"Warmup complete. device={self.runtime.device} "
-                    f"elapsed={result['elapsed_seconds']:.2f}s"
-                    + (" | WeTextProcessing ready." if self.text_normalizer_manager is not None else "")
+                    f"预热完成。设备={self.runtime.device} "
+                    f"耗时={result['elapsed_seconds']:.2f}秒"
+                    + (" | WeTextProcessing 已就绪。" if self.text_normalizer_manager is not None else "")
                 ),
                 error=None,
             )
         except Exception as exc:
             logging.exception("Nano-TTS warmup failed")
-            self._set_state(state="failed", progress=1.0, message="Warmup failed.", error=str(exc))
+            self._set_state(state="failed", progress=1.0, message="预热失败。", error=str(exc))
 
 
 T = TypeVar("T")
@@ -361,7 +361,7 @@ class StreamingJob:
     first_audio_at: float | None = None
     completed_at: float | None = None
     state: str = "starting"
-    run_status: str = "Starting realtime synthesis..."
+    run_status: str = "正在启动实时合成..."
     error: str | None = None
     prompt_audio_path: str | None = None
     sample_rate: int = 48000
@@ -451,10 +451,10 @@ class StreamingJobManager:
 def _warmup_status_text(snapshot: WarmupSnapshot) -> str:
     progress_pct = int(round(snapshot.progress * 100.0))
     if snapshot.failed:
-        return f"Warmup failed: {snapshot.error or snapshot.message}"
+        return f"预热失败：{snapshot.error or snapshot.message}"
     if snapshot.ready:
         return snapshot.message
-    return f"Warmup in progress ({progress_pct}%): {snapshot.message}"
+    return f"预热进行中（{progress_pct}%）：{snapshot.message}"
 
 
 def _format_run_status(result: dict[str, object]) -> str:
@@ -469,38 +469,38 @@ def _format_run_status(result: dict[str, object]) -> str:
     codec_batch_size = result.get("voice_clone_codec_batch_size")
     batch_summary = ""
     if tts_batch_size is not None or codec_batch_size is not None:
-        batch_summary = f" | tts_batch={int(tts_batch_size or 1)} | codec_batch={int(codec_batch_size or 1)}"
+        batch_summary = f" | TTS批={int(tts_batch_size or 1)} | 编解码批={int(codec_batch_size or 1)}"
     execution_summary = ""
     execution_device = result.get("execution_device")
     cpu_threads = result.get("cpu_threads")
     if execution_device:
-        execution_summary = f" | exec={execution_device}"
+        execution_summary = f" | 执行={execution_device}"
         if cpu_threads is not None:
-            execution_summary += f" | cpu_threads={int(cpu_threads)}"
+            execution_summary += f" | CPU线程={int(cpu_threads)}"
     prompt_audio_display_path = str(result.get("prompt_audio_display_path") or "").strip()
     prompt_audio_path = str(result.get("prompt_audio_path") or "").strip()
-    speaker_summary = f"voice={result['voice']}"
+    speaker_summary = f"音色={result['voice']}"
     if prompt_audio_display_path:
         if prompt_audio_display_path.lower().startswith("uploaded:"):
-            speaker_summary = f"prompt={prompt_audio_display_path.split(':', 1)[1].strip()}"
+            speaker_summary = f"提示={prompt_audio_display_path.split(':', 1)[1].strip()}"
         else:
-            speaker_summary = f"prompt={Path(prompt_audio_display_path).stem}"
+            speaker_summary = f"提示={Path(prompt_audio_display_path).stem}"
     elif prompt_audio_path:
-        speaker_summary = f"prompt={Path(prompt_audio_path).stem}"
+        speaker_summary = f"提示={Path(prompt_audio_path).stem}"
     return (
-        f"Done | mode={result['mode']} | {speaker_summary} | "
-        f"attn={attn_summary}{batch_summary}{execution_summary} | audio={audio_seconds:.2f}s | elapsed={float(result['elapsed_seconds']):.2f}s"
+        f"完成 | 模式={result['mode']} | {speaker_summary} | "
+        f"注意力={attn_summary}{batch_summary}{execution_summary} | 音频={audio_seconds:.2f}秒 | 耗时={float(result['elapsed_seconds']):.2f}秒"
     )
 
 
 def _format_stream_status(snapshot: dict[str, object]) -> str:
     if bool(snapshot.get("failed")):
-        return f"Stream failed: {snapshot.get('error') or snapshot.get('run_status') or 'Unknown error'}"
+        return f"流式播放失败：{snapshot.get('error') or snapshot.get('run_status') or '未知错误'}"
     if bool(snapshot.get("ready")):
-        return str(snapshot.get("run_status") or "Stream complete.")
+        return str(snapshot.get("run_status") or "流式播放完成。")
     if bool(snapshot.get("closed")):
-        return "Stream closed."
-    return str(snapshot.get("run_status") or "Streaming...")
+        return "流式播放已关闭。"
+    return str(snapshot.get("run_status") or "流式播放中...")
 
 
 def _normalize_stream_chunk_index(
@@ -545,7 +545,7 @@ def _audio_to_wav_bytes(audio_array, sample_rate: int) -> bytes:
     elif audio_np.ndim == 2 and audio_np.shape[0] <= 8 and audio_np.shape[0] < audio_np.shape[1]:
         audio_np = audio_np.T
     elif audio_np.ndim != 2:
-        raise ValueError(f"Unsupported audio array shape: {audio_np.shape}")
+        raise ValueError(f"不支持的音频数组形状：{audio_np.shape}")
 
     audio_np = np.clip(audio_np, -1.0, 1.0)
     audio_int16 = (audio_np * 32767.0).astype(np.int16)
@@ -568,7 +568,7 @@ def _audio_to_pcm16le_bytes(audio_array) -> bytes:
     elif audio_np.ndim == 2 and audio_np.shape[0] <= 8 and audio_np.shape[0] < audio_np.shape[1]:
         audio_np = audio_np.T
     elif audio_np.ndim != 2:
-        raise ValueError(f"Unsupported audio array shape: {audio_np.shape}")
+        raise ValueError(f"不支持的音频数组形状：{audio_np.shape}")
 
     audio_np = np.clip(audio_np, -1.0, 1.0)
     audio_int16 = (audio_np * 32767.0).astype(np.int16)
@@ -652,7 +652,7 @@ async def _persist_uploaded_prompt_audio(upload: UploadFile | None) -> tuple[str
 
     if not temp_path or bytes_written <= 0:
         _maybe_delete_file(temp_path)
-        raise ValueError("Uploaded prompt speech is empty.")
+        raise ValueError("上传的提示语音为空。")
 
     return temp_path, _format_uploaded_prompt_display_name(original_filename)
 
@@ -668,11 +668,11 @@ def _render_index_html(
     base_path = request.scope.get("root_path", "").rstrip("/")
     template = """
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MOSS-TTS-Nano Demo</title>
+  <title>MOSS-TTS-Nano 演示</title>
   <style>
     :root {
       color-scheme: light;
@@ -1048,31 +1048,31 @@ def _render_index_html(
 <body>
   <div class="page">
     <div class="hero">
-      <h1>MOSS-TTS-Nano Demo</h1>
-      <p class="lead">State-of-the-art text-to-speech demo for multilingual voice cloning.</p>
+      <h1>MOSS-TTS-Nano 演示</h1>
+      <p class="lead">面向多语言语音克隆的先进文本转语音演示。</p>
       <ul class="hero-points">
-        <li><strong>Voice Clone</strong> - Clone any voice from a reference audio.</li>
-        <li><strong>Voice Presets</strong> - Choose built-in demos from <code>assets/demo.jsonl</code>.</li>
+        <li><strong>语音克隆</strong> - 从参考音频克隆任意音色。</li>
+        <li><strong>语音预设</strong> - 从 <code>assets/demo.jsonl</code> 选择内置演示。</li>
       </ul>
-      <p class="build-note">Built with <a href="https://github.com/OpenMOSS/MOSS-TTS-Nano" target="_blank" rel="noopener noreferrer">MOSS-TTS-Nano</a>.</p>
-      <div class="top-tabs" role="tablist" aria-label="Demo mode">
-        <button class="top-tab active" type="button" aria-selected="true">Voice Clone</button>
+      <p class="build-note">基于 <a href="https://github.com/OpenMOSS/MOSS-TTS-Nano" target="_blank" rel="noopener noreferrer">MOSS-TTS-Nano</a> 构建。</p>
+      <div class="top-tabs" role="tablist" aria-label="演示模式">
+        <button class="top-tab active" type="button" aria-selected="true">语音克隆</button>
       </div>
     </div>
 
     <div class="grid">
       <div class="panel input-panel">
         <div class="field">
-          <label for="demo">Demo</label>
+          <label for="demo">演示</label>
           <select id="demo"></select>
         </div>
 
         <div class="field">
-          <label for="prompt-audio-upload">Prompt Speech</label>
+          <label for="prompt-audio-upload">提示语音</label>
           <div class="prompt-audio-box">
             <input id="prompt-audio-upload" type="file" accept="audio/*,.wav,.mp3,.flac,.m4a,.ogg,.opus,.aac">
             <audio id="prompt-audio-preview" controls hidden></audio>
-            <div id="prompt-audio-source" class="meta">Using the selected demo prompt speech.</div>
+            <div id="prompt-audio-source" class="meta">正在使用所选演示的提示语音。</div>
             <div class="prompt-audio-actions">
               <button id="choose-prompt-audio-btn" class="secondary" type="button" hidden>选择文件</button>
               <button id="clear-prompt-audio-btn" class="secondary" type="button" hidden>使用 Demo 音频</button>
@@ -1081,47 +1081,47 @@ def _render_index_html(
         </div>
 
         <div class="field">
-          <label for="text">Text</label>
-          <textarea id="text" placeholder="Enter the text you want to synthesize..."></textarea>
+          <label for="text">文本</label>
+          <textarea id="text" placeholder="输入要合成的文本..."></textarea>
         </div>
 
         <details>
-          <summary>Generation Options</summary>
+          <summary>生成选项</summary>
           <div class="row" style="margin-top: 12px;">
             <div class="field">
-              <label for="max-new-frames">Max New Frames</label>
+              <label for="max-new-frames">最大新帧数</label>
               <input id="max-new-frames" type="number" min="64" max="1024" step="1" value="375">
             </div>
             <div class="field">
-              <label for="voice-clone-max-text-tokens">Voice Clone Max Text Tokens</label>
+              <label for="voice-clone-max-text-tokens">语音克隆最大文本 Token 数</label>
               <input id="voice-clone-max-text-tokens" type="number" min="25" max="200" step="1" value="75">
             </div>
           </div>
           <div class="row">
             <div class="field">
-              <label for="tts-max-batch-size">Max TTS Batch Size (0=auto)</label>
+              <label for="tts-max-batch-size">最大 TTS 批大小（0=自动）</label>
               <input id="tts-max-batch-size" type="number" min="0" step="1" value="1">
             </div>
             <div class="field">
-              <label for="codec-max-batch-size">Max Codec Batch Size (0=auto)</label>
+              <label for="codec-max-batch-size">最大编解码器批大小（0=自动）</label>
               <input id="codec-max-batch-size" type="number" min="0" step="1" value="0">
             </div>
           </div>
           <div class="meta">
-            0 keeps the current default behavior. Set Max TTS Batch Size to 1 to force split chunks to run one by one.
-            Buffered generation keeps chunk order and decodes codec sub-batches no larger than the current TTS batch.
-            Realtime Streaming Decode keeps output order and uses the smallest active chunk-group width among auto batching, Max TTS Batch Size, and Max Codec Batch Size.
+            0 保持当前默认行为。将最大 TTS 批大小设为 1 可强制分块逐块运行。
+            缓冲生成保持分块顺序，并解码不超过当前 TTS 批大小的编解码器子批。
+            实时流式解码保持输出顺序，并在自动批处理、最大 TTS 批大小和最大编解码器批大小中取最小的活动分块组宽度。
           </div>
           <div class="field">
-            <label for="cpu-thread-count">CPU Threads</label>
+            <label for="cpu-thread-count">CPU 线程数</label>
             <input id="cpu-thread-count" type="number" min="1" step="1" value="4">
           </div>
           <div class="meta">
-            This app is CPU-only. CPU Threads maps to torch.set_num_threads for that request.
+            此应用仅支持 CPU。CPU 线程数映射到该请求的 torch.set_num_threads。
           </div>
           <div class="row">
             <div class="field">
-              <label for="attn-implementation">Attention Backend</label>
+              <label for="attn-implementation">注意力后端</label>
               <select id="attn-implementation">
                 <option value="model_default">model_default</option>
                 <option value="sdpa">sdpa</option>
@@ -1129,107 +1129,107 @@ def _render_index_html(
               </select>
             </div>
             <div class="field">
-              <label for="seed">Seed</label>
+              <label for="seed">随机种子</label>
               <input id="seed" type="number" step="1" value="0">
             </div>
           </div>
           <div class="row">
             <div class="field">
-              <label for="text-temperature">Text Temperature</label>
+              <label for="text-temperature">文本温度</label>
               <input id="text-temperature" type="number" min="0.1" max="2.0" step="0.05" value="1.0">
             </div>
             <div class="field">
-              <label for="text-top-p">Text Top P</label>
+              <label for="text-top-p">文本 Top P</label>
               <input id="text-top-p" type="number" min="0.1" max="1.0" step="0.05" value="1.0">
             </div>
           </div>
           <div class="row">
             <div class="field">
-              <label for="text-top-k">Text Top K</label>
+              <label for="text-top-k">文本 Top K</label>
               <input id="text-top-k" type="number" min="1" max="100" step="1" value="50">
             </div>
             <div class="field">
-              <label for="audio-temperature">Audio Temperature</label>
+              <label for="audio-temperature">音频温度</label>
               <input id="audio-temperature" type="number" min="0.1" max="2.0" step="0.05" value="0.8">
             </div>
           </div>
           <div class="row">
             <div class="field">
-              <label for="audio-top-p">Audio Top P</label>
+              <label for="audio-top-p">音频 Top P</label>
               <input id="audio-top-p" type="number" min="0.1" max="1.0" step="0.05" value="0.95">
             </div>
             <div class="field">
-              <label for="audio-top-k">Audio Top K</label>
+              <label for="audio-top-k">音频 Top K</label>
               <input id="audio-top-k" type="number" min="1" max="100" step="1" value="25">
             </div>
           </div>
           <div class="row">
             <div class="field">
-              <label for="audio-repetition-penalty">Audio Repetition Penalty</label>
+              <label for="audio-repetition-penalty">音频重复惩罚</label>
               <input id="audio-repetition-penalty" type="number" min="1.0" max="2.0" step="0.05" value="1.2">
             </div>
             <div class="field"></div>
           </div>
           <div class="field">
-            <label><input id="do-sample" type="checkbox" checked> Do Sample</label>
+            <label><input id="do-sample" type="checkbox" checked> 启用采样</label>
           </div>
           <div class="field">
-            <label><input id="enable-text-normalization" type="checkbox" checked> Enable WeTextProcessing</label>
+            <label><input id="enable-text-normalization" type="checkbox" checked> 启用 WeTextProcessing</label>
           </div>
           <div class="field">
-            <label><input id="enable-robust-text-normalization" type="checkbox" checked> Enable normalize_tts_text</label>
+            <label><input id="enable-robust-text-normalization" type="checkbox" checked> 启用 normalize_tts_text</label>
           </div>
           <div class="meta">
-            WeTextProcessing and normalize_tts_text can now be toggled independently for each request.
-            WeTextProcessing is preloaded during startup so enabling it does not add first-request graph-build latency.
+            WeTextProcessing 和 normalize_tts_text 现在可针对每个请求独立开关。
+            WeTextProcessing 在启动时预加载，启用它不会增加首次请求的构图延迟。
           </div>
           <div class="row">
             <div class="field">
-              <label><input id="realtime-stream" type="checkbox" checked> Realtime Streaming Decode</label>
+              <label><input id="realtime-stream" type="checkbox" checked> 实时流式解码</label>
             </div>
             <div class="field">
-              <label for="initial-playback-delay-seconds">Initial Playback Delay (s)</label>
+              <label for="initial-playback-delay-seconds">初始播放延迟（秒）</label>
               <input id="initial-playback-delay-seconds" type="number" min="0.00" step="0.01" value="0.08">
             </div>
           </div>
         </details>
 
         <div class="buttons">
-          <button id="generate-btn" type="button">Generate</button>
-          <button id="pause-btn" class="secondary" type="button" disabled>Pause Playback</button>
-          <button id="refresh-btn" class="secondary" type="button">Refresh Warmup Status</button>
+          <button id="generate-btn" type="button">生成</button>
+          <button id="pause-btn" class="secondary" type="button" disabled>暂停播放</button>
+          <button id="refresh-btn" class="secondary" type="button">刷新预热状态</button>
         </div>
       </div>
 
       <div class="panel output-panel">
         <div class="field">
-          <label class="field-tag">Warmup Status</label>
+          <label class="field-tag">预热状态</label>
           <div id="warmup-status" class="status">__WARMUP_STATUS__</div>
         </div>
         <div class="field">
-          <label class="field-tag">Text Normalization Status</label>
+          <label class="field-tag">文本归一化状态</label>
           <div id="text-normalization-status" class="status">__TEXT_NORMALIZATION_STATUS__</div>
         </div>
         <div class="field">
-          <label class="field-tag">Run Status</label>
-          <div id="run-status" class="status">Idle.</div>
+          <label class="field-tag">运行状态</label>
+          <div id="run-status" class="status">空闲。</div>
         </div>
         <div id="stream-metrics" class="meta"></div>
         <div class="field">
-          <label class="field-tag">Normalized Text</label>
+          <label class="field-tag">归一化文本</label>
           <textarea id="normalized-text-output" readonly style="min-height: 120px;"></textarea>
         </div>
         <div class="field">
-          <label class="field-tag">Playback Script</label>
-          <div id="playback-script" class="playback-script empty">The current sentence will be highlighted here during playback.</div>
+          <label class="field-tag">播放脚本</label>
+          <div id="playback-script" class="playback-script empty">播放时当前句子将在此处高亮显示。</div>
         </div>
         <div class="field">
-          <label class="field-tag">Generated Speech</label>
+          <label class="field-tag">生成的语音</label>
           <div id="resolved-prompt" class="meta"></div>
         </div>
         <audio id="audio-output" controls></audio>
-        <div class="meta">Checkpoint: __CHECKPOINT__</div>
-        <div class="meta">Audio Tokenizer: __AUDIO_TOKENIZER__</div>
+        <div class="meta">模型检查点：__CHECKPOINT__</div>
+        <div class="meta">音频分词器：__AUDIO_TOKENIZER__</div>
       </div>
     </div>
   </div>
@@ -1345,7 +1345,7 @@ def _render_index_html(
         currentPromptAudioPreviewUrl = URL.createObjectURL(uploadedPromptAudio);
         showPromptAudioPreview({
           sourceUrl: currentPromptAudioPreviewUrl,
-          message: `Using uploaded prompt speech: ${uploadedPromptAudio.name}`,
+          message: `正在使用上传的提示语音：${uploadedPromptAudio.name}`,
           showResetToDemo: true,
         });
         return;
@@ -1357,8 +1357,8 @@ def _render_index_html(
         showPromptAudioPreview({
           sourceUrl: getDemoPromptAudioUrl(demo.id),
           message: demo.prompt_speech
-            ? `Using demo prompt speech: ${demo.prompt_speech}`
-            : "Using demo prompt speech.",
+            ? `正在使用演示提示语音：${demo.prompt_speech}`
+            : "正在使用演示提示语音。",
           showResetToDemo: false,
         });
         return;
@@ -1522,7 +1522,7 @@ def _render_index_html(
 
       if (!playbackChunks.length) {
         playbackScript.classList.add("empty");
-        playbackScript.textContent = "The current sentence will be highlighted here during playback.";
+        playbackScript.textContent = "播放时当前句子将在此处高亮显示。";
         return;
       }
 
@@ -1587,16 +1587,16 @@ def _render_index_html(
     function updatePauseButtonState() {
       if (hasRealtimePlayback()) {
         pauseBtn.disabled = false;
-        pauseBtn.textContent = currentRealtimePlaybackPaused ? "Resume Playback" : "Pause Playback";
+        pauseBtn.textContent = currentRealtimePlaybackPaused ? "继续播放" : "暂停播放";
         return;
       }
       if (hasBufferedPlayback()) {
         pauseBtn.disabled = false;
-        pauseBtn.textContent = audioOutput.paused ? "Resume Playback" : "Pause Playback";
+        pauseBtn.textContent = audioOutput.paused ? "继续播放" : "暂停播放";
         return;
       }
       pauseBtn.disabled = true;
-      pauseBtn.textContent = "Pause Playback";
+      pauseBtn.textContent = "暂停播放";
     }
 
     function resetRealtimePlaybackTracking() {
@@ -1852,10 +1852,10 @@ def _render_index_html(
           fetchJson(`${APP_BASE}/api/warmup-status`),
           fetchJson(`${APP_BASE}/api/text-normalization-status`),
         ]);
-        setStatus(warmupStatus, warmupData.status_text || "Unknown status.");
+        setStatus(warmupStatus, warmupData.status_text || "未知状态。");
         setStatus(
           textNormalizationStatus,
-          normalizationData.status_text || "Unknown status.",
+          normalizationData.status_text || "未知状态。",
           Boolean(normalizationData.failed)
         );
       } catch (error) {
@@ -1881,8 +1881,8 @@ def _render_index_html(
       rebuildBufferedPlaybackBoundaries();
       updateBufferedPlaybackHighlight();
       updatePauseButtonState();
-      resolvedPrompt.textContent = "Generated speech is ready.";
-      setStatus(runStatus, data.run_status || "Done.");
+      resolvedPrompt.textContent = "语音已生成。";
+      setStatus(runStatus, data.run_status || "完成。");
       if (data.warmup_status_text) {
         setStatus(warmupStatus, data.warmup_status_text);
       }
@@ -1894,7 +1894,7 @@ def _render_index_html(
     async function generateRealtime(formData) {
       await closeRealtimeStream();
       clearAudioOutput();
-      resolvedPrompt.textContent = "Generating realtime speech...";
+      resolvedPrompt.textContent = "正在生成实时语音...";
       streamMetrics.textContent = "";
 
       const startData = await fetchJson(`${APP_BASE}/api/generate-stream/start`, {
@@ -1903,7 +1903,7 @@ def _render_index_html(
       });
 
       currentStreamId = startData.stream_id;
-      setStatus(runStatus, startData.run_status || "Streaming realtime audio...");
+      setStatus(runStatus, startData.run_status || "正在流式播放实时音频...");
       if (startData.warmup_status_text) {
         setStatus(warmupStatus, startData.warmup_status_text);
       }
@@ -1915,7 +1915,7 @@ def _render_index_html(
 
       const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextCtor) {
-        throw new Error("This browser does not support Web Audio streaming playback.");
+        throw new Error("此浏览器不支持 Web Audio 流式播放。");
       }
       currentInitialPlaybackDelaySeconds = resolveInitialPlaybackDelaySeconds();
       currentAudioContext = new AudioContextCtor({ sampleRate: startData.sample_rate });
@@ -1936,13 +1936,13 @@ def _render_index_html(
           setStatus(runStatus, snapshot.run_status, Boolean(snapshot.failed));
         }
         const metrics = [
-          `state=${snapshot.state}`,
-          `emitted=${Number(snapshot.emitted_audio_seconds || 0).toFixed(2)}s`,
-          `lead=${Number(snapshot.lead_seconds || 0).toFixed(2)}s`,
-          `playback_delay=${currentInitialPlaybackDelaySeconds.toFixed(2)}s`
+          `状态=${snapshot.state}`,
+          `已输出=${Number(snapshot.emitted_audio_seconds || 0).toFixed(2)}秒`,
+          `领先=${Number(snapshot.lead_seconds || 0).toFixed(2)}秒`,
+          `播放延迟=${currentInitialPlaybackDelaySeconds.toFixed(2)}秒`
         ];
         if (snapshot.first_audio_latency_seconds !== null && snapshot.first_audio_latency_seconds !== undefined) {
-          metrics.push(`first_audio=${Number(snapshot.first_audio_latency_seconds).toFixed(2)}s`);
+          metrics.push(`首音频=${Number(snapshot.first_audio_latency_seconds).toFixed(2)}秒`);
         }
         streamMetrics.textContent = metrics.join(" | ");
         if (!currentRealtimePlaybackPaused && snapshot.playback_chunk_index !== null && snapshot.playback_chunk_index !== undefined) {
@@ -1964,7 +1964,7 @@ def _render_index_html(
         throw new Error(text || `HTTP ${response.status}`);
       }
       if (!response.body) {
-        throw new Error("ReadableStream is not available on this response.");
+        throw new Error("此响应不可用 ReadableStream。");
       }
 
       const reader = response.body.getReader();
@@ -2005,7 +2005,7 @@ def _render_index_html(
         await new Promise((resolve) => window.setTimeout(resolve, 100));
       }
       if (!result || !result.ready) {
-        throw new Error("Streaming finished but the final result is not ready yet.");
+        throw new Error("流式播放已结束，但最终结果尚未就绪。");
       }
       if (result.audio_base64) {
         if (currentAudioObjectUrl) {
@@ -2018,14 +2018,14 @@ def _render_index_html(
         audioOutput.load();
         rebuildBufferedPlaybackBoundaries();
       }
-      resolvedPrompt.textContent = "Generated speech is ready.";
+      resolvedPrompt.textContent = "语音已生成。";
       streamMetrics.textContent = result.stream_metrics || streamMetrics.textContent;
       if (Array.isArray(result.text_chunks) && result.text_chunks.length > 0 && playbackChunks.length === 0) {
         renderPlaybackScript(result.text_chunks, normalizedTextOutput.value || textInput.value);
       }
       currentRealtimePlaybackChunkRanges = normalizeRealtimeChunkRanges(result.audio_chunk_ranges);
       updateRealtimePlaybackHighlightFromLocalClock();
-      setStatus(runStatus, result.run_status || "Stream complete.");
+      setStatus(runStatus, result.run_status || "流式播放完成。");
       if (currentStreamId) {
         fetch(`${APP_BASE}/api/generate-stream/${encodeURIComponent(currentStreamId)}/close`, {
           method: "POST"
@@ -2063,7 +2063,7 @@ def _render_index_html(
     async function generate() {
       generateBtn.disabled = true;
       refreshBtn.disabled = true;
-      setStatus(runStatus, realtimeStreamToggle.checked ? "Starting realtime stream..." : "Running synthesis...");
+      setStatus(runStatus, realtimeStreamToggle.checked ? "正在启动实时流..." : "正在运行合成...");
 
       try {
         const formData = buildFormData();
@@ -2094,13 +2094,13 @@ def _render_index_html(
       clearNormalizedOutputs();
       resolvedPrompt.textContent = "";
       streamMetrics.textContent = "";
-      setStatus(runStatus, "Idle.");
+      setStatus(runStatus, "空闲。");
     });
     promptAudioUploadInput.addEventListener("change", () => {
       applySelectedDemo(false);
       clearNormalizedOutputs();
       resolvedPrompt.textContent = "";
-      setStatus(runStatus, "Idle.");
+      setStatus(runStatus, "空闲。");
     });
     choosePromptAudioBtn.addEventListener("click", () => {
       promptAudioUploadInput.click();
@@ -2110,7 +2110,7 @@ def _render_index_html(
       applySelectedDemo(false);
       clearNormalizedOutputs();
       resolvedPrompt.textContent = "";
-      setStatus(runStatus, "Idle.");
+      setStatus(runStatus, "空闲。");
     });
     pauseBtn.addEventListener("click", () => {
       togglePausePlayback().catch((error) => {
@@ -2176,7 +2176,7 @@ def _build_app(
     text_normalizer_manager: WeTextProcessingManager | None,
     root_path: str | None,
 ) -> FastAPI:
-    app = FastAPI(title="MOSS-TTS-Nano Demo", root_path=root_path or "")
+    app = FastAPI(title="MOSS-TTS-Nano 演示", root_path=root_path or "")
     stream_jobs = StreamingJobManager()
     runtime_manager = RequestRuntimeManager(runtime)
     demo_entries = _load_demo_entries()
@@ -2211,10 +2211,10 @@ def _build_app(
     def _resolve_demo_entry(demo_id: str) -> DemoEntry:
         normalized_demo_id = str(demo_id or "").strip()
         if not normalized_demo_id:
-            raise ValueError("demo_id is required.")
+            raise ValueError("需要提供演示 ID。")
         demo_entry = demo_entries_by_id.get(normalized_demo_id)
         if demo_entry is None:
-            raise ValueError(f"Unknown demo_id: {normalized_demo_id}")
+            raise ValueError(f"未知的演示 ID：{normalized_demo_id}")
         return demo_entry
 
     async def _resolve_prompt_audio_request(
@@ -2235,7 +2235,7 @@ def _build_app(
             )
 
         if demo_entry is None:
-            raise ValueError("demo_id is required unless prompt speech is uploaded.")
+            raise ValueError("需要提供演示 ID，除非已上传提示语音。")
 
         return (
             demo_entry,
@@ -2246,20 +2246,20 @@ def _build_app(
 
     def _stream_metrics_text(snapshot: dict[str, object]) -> str:
         metrics = [
-            f"state={snapshot['state']}",
-            f"emitted={float(snapshot['emitted_audio_seconds']):.2f}s",
-            f"lead={float(snapshot['lead_seconds']):.2f}s",
+            f"状态={snapshot['state']}",
+            f"已输出={float(snapshot['emitted_audio_seconds']):.2f}秒",
+            f"领先={float(snapshot['lead_seconds']):.2f}秒",
         ]
         first_audio_latency = snapshot.get("first_audio_latency_seconds")
         if first_audio_latency is not None:
-            metrics.append(f"first_audio={float(first_audio_latency):.2f}s")
+            metrics.append(f"首音频={float(first_audio_latency):.2f}秒")
         return " | ".join(metrics)
 
     def _text_normalization_status_text(snapshot: SharedTextNormalizationSnapshot | None) -> str:
         if snapshot is None:
-            return "WeTextProcessing disabled."
+            return "WeTextProcessing 已禁用。"
         if snapshot.failed:
-            return f"{snapshot.message} error={snapshot.error}"
+            return f"{snapshot.message} 错误={snapshot.error}"
         return snapshot.message
 
     def _resolve_attn_for_runtime(selected_runtime: NanoTTSService, requested_attn: str) -> str:
@@ -2309,7 +2309,7 @@ def _build_app(
             with job.lock:
                 job.started_at = time.monotonic()
                 job.state = "running"
-                job.run_status = f"Streaming realtime audio... exec={initial_execution_label}"
+                job.run_status = f"正在流式播放实时音频... 执行={initial_execution_label}"
 
             def _stream_factory(selected_runtime: NanoTTSService):
                 return selected_runtime.synthesize_stream(
@@ -2377,7 +2377,7 @@ def _build_app(
                         if job.first_audio_at is None and not is_pause:
                             job.first_audio_at = time.monotonic()
                         job.run_status = (
-                            f"Streaming | emitted={job.emitted_audio_seconds:.2f}s | lead={job.lead_seconds:.2f}s"
+                            f"流式播放中 | 已输出={job.emitted_audio_seconds:.2f}秒 | 领先={job.lead_seconds:.2f}秒"
                         )
                     _put_stream_audio(job, pcm_bytes)
                     continue
@@ -2406,7 +2406,7 @@ def _build_app(
                 job.state = "failed"
                 job.error = str(exc)
                 job.completed_at = time.monotonic()
-                job.run_status = f"Stream failed: {exc}"
+                job.run_status = f"流式播放失败：{exc}"
         finally:
             _maybe_delete_file(prompt_audio_cleanup_path)
             try:
@@ -2467,12 +2467,12 @@ def _build_app(
         if snapshot is None:
             return {
                 "state": "disabled",
-                "message": "WeTextProcessing disabled.",
+                "message": "WeTextProcessing 已禁用。",
                 "error": None,
                 "ready": False,
                 "failed": False,
                 "available": False,
-                "status_text": "WeTextProcessing disabled.",
+                "status_text": "WeTextProcessing 已禁用。",
             }
         return {
             "state": snapshot.state,
@@ -2531,7 +2531,7 @@ def _build_app(
         resolved_text = str(text or "").strip() or (demo_entry.text if demo_entry is not None else "")
         if not resolved_text:
             _maybe_delete_file(prompt_audio_cleanup_path)
-            return JSONResponse(status_code=400, content={"error": "text is required."})
+            return JSONResponse(status_code=400, content={"error": "文本不能为空。"})
 
         try:
             prepared_texts = shared_prepare_tts_request_texts(
@@ -2603,7 +2603,7 @@ def _build_app(
                 "result_url": f"{app.root_path}/api/generate-stream/{job.stream_id}/result",
                 "sample_rate": job.sample_rate,
                 "channels": job.channels,
-                "run_status": f"Streaming realtime audio... exec={initial_execution_label}",
+                "run_status": f"正在流式播放实时音频... 执行={initial_execution_label}",
                 "prompt_audio_path": prompt_audio_display_path,
                 "warmup_status_text": _warmup_status_text(warmup_manager.snapshot()),
                 "text_normalization_status_text": _text_normalization_status_text(
@@ -2622,7 +2622,7 @@ def _build_app(
     async def generate_stream_status(stream_id: str):
         job = stream_jobs.get(stream_id)
         if job is None:
-            return JSONResponse(status_code=404, content={"error": "stream not found"})
+            return JSONResponse(status_code=404, content={"error": "未找到流"})
         snapshot = job.snapshot()
         snapshot["status_text"] = _format_stream_status(snapshot)
         snapshot["stream_metrics"] = _stream_metrics_text(snapshot)
@@ -2632,7 +2632,7 @@ def _build_app(
     async def generate_stream_audio(stream_id: str):
         job = stream_jobs.get(stream_id)
         if job is None:
-            return JSONResponse(status_code=404, content={"error": "stream not found"})
+            return JSONResponse(status_code=404, content={"error": "未找到流"})
 
         def _iter_audio():
             while True:
@@ -2656,7 +2656,7 @@ def _build_app(
     async def generate_stream_result(stream_id: str):
         job = stream_jobs.get(stream_id)
         if job is None:
-            return JSONResponse(status_code=404, content={"error": "stream not found"})
+            return JSONResponse(status_code=404, content={"error": "未找到流"})
         snapshot = job.snapshot()
         if snapshot["failed"]:
             return JSONResponse(status_code=500, content={"error": snapshot["error"], **snapshot})
@@ -2698,7 +2698,7 @@ def _build_app(
     async def generate_stream_close(stream_id: str):
         job = stream_jobs.close(stream_id)
         if job is None:
-            return JSONResponse(status_code=404, content={"error": "stream not found"})
+            return JSONResponse(status_code=404, content={"error": "未找到流"})
         audio_cleanup_path = ""
         with job.lock:
             if job.final_result is not None:
@@ -2742,7 +2742,7 @@ def _build_app(
         resolved_text = str(text or "").strip() or (demo_entry.text if demo_entry is not None else "")
         if not resolved_text:
             _maybe_delete_file(prompt_audio_cleanup_path)
-            return JSONResponse(status_code=400, content={"error": "text is required."})
+            return JSONResponse(status_code=400, content={"error": "文本不能为空。"})
 
         try:
             prepared_texts = shared_prepare_tts_request_texts(

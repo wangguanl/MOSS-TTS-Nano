@@ -80,17 +80,17 @@ class WeTextProcessingManager:
         if not self._available:
             self._set_state(
                 state="failed",
-                message="WeTextProcessing unavailable.",
+                message="WeTextProcessing 不可用。",
                 error="installed WeTextProcessing modules are unavailable",
             )
             return
         try:
-            self._set_state(state="running", message="Loading WeTextProcessing graphs.", error=None)
+            self._set_state(state="running", message="正在加载 WeTextProcessing 图。", error=None)
             self._ensure_normalizers_loaded()
-            self._set_state(state="ready", message="WeTextProcessing ready. languages=zh,en", error=None)
+            self._set_state(state="ready", message="WeTextProcessing 已就绪。语言=zh,en", error=None)
         except Exception as exc:
             logging.exception("WeTextProcessing preload failed")
-            self._set_state(state="failed", message="WeTextProcessing preload failed.", error=str(exc))
+            self._set_state(state="failed", message="WeTextProcessing 预加载失败。", error=str(exc))
 
     def _ensure_normalizers_loaded(self) -> dict[str, object]:
         with self._lock:
